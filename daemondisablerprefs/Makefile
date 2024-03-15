@@ -1,5 +1,7 @@
 include $(THEOS)/makefiles/common.mk
 
+ARCHS = arm64 arm64e
+
 BUNDLE_NAME = DaemonDisablerPrefs
 
 DaemonDisablerPrefs_FILES = ddRootListController.m

@@ -1,6 +1,4 @@
-THEOS_DEVICE_IP = 192.168.1.65
-
-ARCHS = armv7 arm64 arm64e
+ARCHS = arm64 arm64e
 
 INSTALL_TARGET_PROCESSES = SpringBoard
 

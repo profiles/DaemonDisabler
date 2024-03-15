@@ -1,5 +1,6 @@
 #include "ddRootListController.h"
-#import "../NSTask.h"
+#include <spawn.h>
+#include <roothide.h>
 
 @implementation SRSwitchTableCell
 
@@ -19,7 +20,7 @@
     if(!_specifiers){
         _specifiers = [NSMutableArray new];
         NSFileManager *fm = NSFileManager.defaultManager;
-        NSArray *paths = @[@"/Library/LaunchDaemons", @"/System/Library/LaunchDaemons", @"/System/Library/NanoLaunchDaemons"];
+        NSArray *paths = @[jbroot(@"/Library/LaunchDaemons"), jbroot(@"/System/Library/LaunchDaemons"), jbroot(@"/System/Library/NanoLaunchDaemons")];
         for(NSString *path in paths){
             NSArray *fileList = [fm contentsOfDirectoryAtPath:path error:nil];
             if (fileList) for(NSString *daemon in fileList) if ([daemon hasSuffix:@".plist"]){
@@ -34,7 +35,7 @@
 }
 
 -(id)readPreferenceValue:(PSSpecifier *)specifier{
-    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/com.level3tjg.daemondisabler.plist"];
+    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:jbroot(@"/var/mobile/Library/Preferences/com.level3tjg.daemondisabler.plist")];
     if (!prefs[specifier.properties[@"key"]]){
         return @YES;
     }
@@ -43,7 +44,7 @@
 
 -(void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier{
     NSMutableDictionary *defaults = [NSMutableDictionary dictionary];
-    [defaults addEntriesFromDictionary:[NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/com.level3tjg.daemondisabler.plist"]];
+    [defaults addEntriesFromDictionary:[NSDictionary dictionaryWithContentsOfFile:jbroot(@"/var/mobile/Library/Preferences/com.level3tjg.daemondisabler.plist")]];
     NSString *daemon = specifier.properties[@"key"];
     NSDictionary *daemonPlist = [NSDictionary dictionaryWithContentsOfFile:daemon];
     NSString *service = [daemonPlist objectForKey:@"Label"];
@@ -54,13 +55,13 @@
     if([value isEqual:@NO]){
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"DaemonDisabler" message:[NSString stringWithFormat:@"Are you sure you want to disable %@?", daemon] preferredStyle:UIAlertControllerStyleAlert];
         UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"Yes" style:UIAlertActionStyleDefault handler:^(UIAlertAction * action){
+            pid_t pid;
+            posix_spawn(&pid, jbroot("/usr/libexec/launchctl_wrapper"), NULL, NULL, (char *const *)(const char *[]){"launchctl_wrapper", "unload", daemon.UTF8String, NULL}, NULL);
+            int status;
+            waitpid(pid, &status, WEXITED);
 
-            NSTask *task = [NSTask new];
-            [task setLaunchPath:@"/usr/libexec/launchctl_wrapper"];
-            [task setArguments:@[@"unload", daemon]];
-            [task launch];
             [defaults setObject:value forKey:specifier.properties[@"key"]];
-            [defaults writeToFile:@"/var/mobile/Library/Preferences/com.level3tjg.daemondisabler.plist" atomically:YES];
+            [defaults writeToFile:jbroot(@"/var/mobile/Library/Preferences/com.level3tjg.daemondisabler.plist") atomically:YES];
         }];
         UIAlertAction *otherAction = [UIAlertAction actionWithTitle:@"No" style:UIAlertActionStyleDefault handler:^(UIAlertAction * action){
             [(UISwitch *)specifier.properties[@"control"] setOn:TRUE animated:TRUE];
@@ -71,16 +72,17 @@
         [self presentViewController:alert animated:YES completion:nil];
     }
     else{
-        NSTask *task = [NSTask new];
-        [task setLaunchPath:@"/usr/libexec/launchctl_wrapper"];
-        [task setArguments:@[@"load", daemon]];
-        [task launch];
+        pid_t pid;
+        posix_spawn(&pid, jbroot("/usr/libexec/launchctl_wrapper"), NULL, NULL, (char *const *)(const char *[]){"launchctl_wrapper", "load", daemon.UTF8String, NULL}, NULL);
+        int status;
+        waitpid(pid, &status, WEXITED);
+       
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"DaemonDisabler" message:[NSString stringWithFormat:@"Would you like to kickstart %@?", service] preferredStyle:UIAlertControllerStyleAlert];
         UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"Yes" style:UIAlertActionStyleDefault handler:^(UIAlertAction * action){
-            NSTask *task = [NSTask new];
-            [task setLaunchPath:@"/usr/libexec/launchctl_wrapper"];
-            [task setArguments:@[@"kickstart", @"-k", [NSString stringWithFormat:@"system/%@", service]]];
-            [task launch];
+            pid_t pid;
+            posix_spawn(&pid, jbroot("/usr/libexec/launchctl_wrapper"), NULL, NULL, (char *const *)(const char *[]){"launchctl_wrapper", "kickstart", "-k", [NSString stringWithFormat:@"system/%@", service].UTF8String, NULL}, NULL);
+            int status;
+            waitpid(pid, &status, WEXITED);
         }];
         UIAlertAction *otherAction = [UIAlertAction actionWithTitle:@"No" style:UIAlertActionStyleDefault handler:^(UIAlertAction * action){
             [alert dismissViewControllerAnimated:YES completion:nil];
@@ -89,7 +91,7 @@
         [alert addAction:otherAction];
         [self presentViewController:alert animated:YES completion:nil];
         [defaults setObject:value forKey:specifier.properties[@"key"]];
-        [defaults writeToFile:@"/var/mobile/Library/Preferences/com.level3tjg.daemondisabler.plist" atomically:YES];
+        [defaults writeToFile:jbroot(@"/var/mobile/Library/Preferences/com.level3tjg.daemondisabler.plist") atomically:YES];
     }
 }
 
@@ -111,7 +113,7 @@
             if([label.text isEqualToString:@"DaemonDisabler"])
                 label.hidden = true;
     [bar setTintColor:[UIColor colorWithRed:0.9 green:0.1 blue:0.1 alpha:1.0]];
-    UIImageView *imageView = [[UIImageView alloc] initWithImage:[UIImage imageWithContentsOfFile:@"/Library/PreferenceBundles/DaemonDisablerPrefs.bundle/Icon@3x.png"]];
+    UIImageView *imageView = [[UIImageView alloc] initWithImage:[UIImage imageWithContentsOfFile:jbroot(@"/Library/PreferenceBundles/DaemonDisablerPrefs.bundle/Icon@3x.png")]];
     CGSize imageSize = CGSizeMake(40, 40);
     CGFloat marginX = (self.navigationController.navigationBar.frame.size.width / 2) - (imageSize.width / 2);
     imageView.frame = CGRectMake(marginX, 0, imageSize.width, imageSize.height);

@@ -20,9 +20,9 @@
     if(!_specifiers){
         _specifiers = [NSMutableArray new];
         NSFileManager *fm = NSFileManager.defaultManager;
-        NSArray *paths = @[jbroot(@"/Library/LaunchDaemons"), jbroot(@"/System/Library/LaunchDaemons"), jbroot(@"/System/Library/NanoLaunchDaemons")];
+        NSArray *paths = @[@"/Library/LaunchDaemons", @"/System/Library/LaunchDaemons", @"/System/Library/NanoLaunchDaemons"];
         for(NSString *path in paths){
-            NSArray *fileList = [fm contentsOfDirectoryAtPath:path error:nil];
+            NSArray *fileList = [fm contentsOfDirectoryAtPath:jbroot(path) error:nil];
             if (fileList) for(NSString *daemon in fileList) if ([daemon hasSuffix:@".plist"]){
                 PSSpecifier *daemonSpecifier = [PSSpecifier preferenceSpecifierNamed:daemon target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:) detail:nil cell:PSSwitchCell edit:nil];
                 [daemonSpecifier setProperty:[NSString stringWithFormat:@"%@/%@", path, daemon] forKey:@"key"];
@@ -45,7 +45,7 @@
 -(void)setPreferenceValue:(id)value specifier:(PSSpecifier *)specifier{
     NSMutableDictionary *defaults = [NSMutableDictionary dictionary];
     [defaults addEntriesFromDictionary:[NSDictionary dictionaryWithContentsOfFile:jbroot(@"/var/mobile/Library/Preferences/com.level3tjg.daemondisabler.plist")]];
-    NSString *daemon = specifier.properties[@"key"];
+    NSString *daemon = jbroot(specifier.properties[@"key"]);
     NSDictionary *daemonPlist = [NSDictionary dictionaryWithContentsOfFile:daemon];
     NSString *service = [daemonPlist objectForKey:@"Label"];
     if(!service){
